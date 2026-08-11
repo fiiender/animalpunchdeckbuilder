@@ -62,6 +62,7 @@
   header h1 small { color: var(--text-dim); font-weight: 500; font-size: 12px; margin-left: 8px; }
   .header-center-btn { margin-left: 10px; flex: none; }
   .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ha-row { display: flex; gap: 8px; align-items: center; }
   .btn {
     border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--text);
     border-radius: var(--radius-sm); padding: 7px 14px; cursor: pointer;
@@ -244,6 +245,24 @@
   .stat-block .sh { font-size: 11px; color: var(--text-faint); }
   .stat-block .svsmall { font-size: 12px; font-weight: 700; }
   #color-chips { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .deck-name-wrap {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 5px;
+    max-width: 45%;
+    color: var(--text-dim);
+    cursor: pointer; user-select: none;
+    transition: color .15s;
+  }
+  .deck-name-wrap:hover { color: var(--text); }
+  .deck-name-wrap .deck-name-text {
+    font-size: 13px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-bottom: 1px dashed currentColor;  /* 下划线 */
+    max-width: 180px;
+  }
+  .deck-name-wrap.empty .deck-name-text { border-bottom: none; color: var(--text-faint); font-weight: 400; font-size: 12px; }
+  .deck-name-wrap .deck-name-pencil { flex: none; opacity: 0.7; }
+  .deck-name-wrap:hover .deck-name-pencil { opacity: 1; }
   .color-chip {
     display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;
     padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border-strong);
@@ -345,6 +364,12 @@
     font-family: inherit; outline: none; word-break: break-all;
   }
   .modal textarea:focus { border-color: var(--accent); }
+  .modal input[type="text"] {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none;
+  }
+  .modal input[type="text"]:focus { border-color: var(--accent); }
   .modal .m-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
   .modal .code-count { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
   .modal .code-count.ok { color: var(--ok); }
@@ -439,8 +464,9 @@
     }
     header h1 { font-size: 15px; }
     header h1 small { display: none; }
-    .header-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+    .header-actions { margin-left: 0; width: 100%; justify-content: flex-end; flex-direction: column; align-items: stretch; }
     .header-actions .btn { padding: 6px 10px; font-size: 12px; }
+    .header-actions .ha-row { width: 100%; justify-content: flex-end; }
     .src-status { order: -1; margin-right: auto; }
 
     .rules { padding: 6px 12px; gap: 4px 12px; font-size: 11px; }
@@ -489,11 +515,15 @@
     <button class="btn ghost header-center-btn" id="btn-changelog" title="查看更新日志">更新日志</button>
     <div class="header-actions">
       <span class="src-status" id="src-status" title="卡牌数据来源"><span class="src-dot"></span><span id="src-status-text">加载中…</span></span>
-      <button class="btn ghost" id="btn-import-code" title="从短码导入卡组">导入码</button>
-      <button class="btn ghost" id="btn-export-code" title="将卡组导出为120字符内的英数短码">复制码</button>
-      <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
-      <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
-      <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
+      <div class="ha-row" id="ha-row-code">
+        <button class="btn ghost" id="btn-import-code" title="从短码导入卡组">导入码</button>
+        <button class="btn ghost" id="btn-export-code" title="将卡组导出为120字符内的英数短码">复制码</button>
+      </div>
+      <div class="ha-row" id="ha-row-tts">
+        <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
+        <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
+        <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
+      </div>
     </div>
   </header>
 
@@ -564,6 +594,12 @@
         <div class="stat-block" style="flex-basis:100%">
           <span class="sl">构筑色</span>
           <span id="color-chips"></span>
+          <div class="deck-name-wrap" id="deck-name-wrap" title="点击命名卡组">
+            <span class="deck-name-text" id="deck-name-text"></span>
+            <svg class="deck-name-pencil" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </div>
         </div>
         <div class="stat-block" style="flex-basis:100%">
           <span class="sl">等级</span>
@@ -623,6 +659,19 @@
       <button class="btn ghost" id="code-modal-cancel">关闭</button>
       <button class="btn ghost" id="code-modal-copy" style="display:none">复制</button>
       <button class="btn primary" id="code-modal-import" style="display:none">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 卡组命名弹窗 -->
+<div class="modal-mask" id="deck-name-modal" style="display:none">
+  <div class="modal">
+    <h3>卡组名称</h3>
+    <div class="m-sub">最多 12 个字符</div>
+    <input type="text" id="deck-name-input" maxlength="12" placeholder="输入卡组名称" autocomplete="off">
+    <div class="m-actions">
+      <button class="btn ghost" id="deck-name-modal-cancel">取消</button>
+      <button class="btn primary" id="deck-name-modal-ok">确定</button>
     </div>
   </div>
 </div>
@@ -2700,7 +2749,7 @@ const MAIN_MIN = 30, MAIN_MAX = 40, SIDE_MAX = 10;
 
 let CARDS = [];      // 当前使用的卡牌数据
 let CARD_MAP = {};   // id -> card
-const deck = { main: {}, side: {} };
+const deck = { name: '', main: {}, side: {} };
 
 /* ---------- 数据加载：完全静态（不请求 API）----------
    网站直接使用内置卡牌数据（FALLBACK_CARDS），打开即用、零网络请求。
@@ -2860,9 +2909,11 @@ function moveToMain(id) {
   renderAll();
 }
 function clearDeck() {
-  if (!confirm('确定清空主卡组和额外卡组吗？')) return;
+  if (!confirm('确定清空主卡组、额外卡组和卡组名称吗？')) return;
   for (const k in deck.main) delete deck.main[k];
   for (const k in deck.side) delete deck.side[k];
+  deck.name = '';
+  syncDeckNameInput();
   renderAll();
   toast('卡组已清空', 'ok');
 }
@@ -3300,7 +3351,7 @@ function exportTTS() {
   }
 
   const payload = {
-    SaveName: '动物之拳卡组',
+    SaveName: deck.name || '动物之拳卡组',
     Date: new Date().toISOString().replace(/\.\d+Z$/, ''),
     VersionNumber: '',
     GameMode: '',
@@ -3323,9 +3374,8 @@ function exportTTS() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const d = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  a.download = `动物之拳卡组_TTS_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  const namePart = (deck.name || '').replace(/[\\/:*?"<>|]/g, '').trim();
+  a.download = namePart ? `${namePart}.json` : `动物之拳卡组.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -3501,11 +3551,67 @@ function charsToEntry(str) {
   return { index, count };
 }
 
+/* ---------- 卡组名称编码（UTF-8 → base62）----------
+   名称限 12 个字符。编码：nameLen(1字符base62，0=无名称) + 名称UTF-8字节转base62
+   字节数 b → 需要的 base62 字符数 n = ceil(b*8 / log2(62))，解码时按此精确读取 */
+function nameSegChars(b) {
+  // b 个字节，每个字节8位；base62 每位约 log2(62)≈5.954 位
+  return Math.ceil((b * 8) / Math.log2(62));
+}
+
+function encodeName(name) {
+  if (!name) return b62en(0);
+  const bytes = new TextEncoder().encode(name);
+  // 字节数组 -> BigInt
+  let num = 0n;
+  for (const bb of bytes) num = (num << 8n) | BigInt(bb);
+  // BigInt -> base62（保证填充到 nameSegChars(len) 位）
+  const n = nameSegChars(bytes.length);
+  let s = '';
+  const B62_BI = 62n;
+  for (let i = 0; i < n; i++) {
+    s = b62en(Number(num % B62_BI)) + s;
+    num = num / B62_BI;
+  }
+  return b62en(bytes.length) + s;
+}
+
+function decodeName(code, startPos) {
+  const len = b62de(code[startPos]);
+  if (len === -1) return { ok: false, msg: '名称长度字段无效' };
+  if (len === 0) return { ok: true, name: '', nextPos: startPos + 1 };
+  if (len > 36) return { ok: false, msg: `名称长度异常（${len}）` };
+
+  const n = nameSegChars(len);
+  let pos = startPos + 1;
+  if (pos + n > code.length) return { ok: false, msg: '名称编码不足' };
+  let num = 0n;
+  const B62_BI = 62n;
+  for (let i = 0; i < n; i++) {
+    const v = b62de(code[pos + i]);
+    if (v === -1) return { ok: false, msg: '名称编码无效' };
+    num = num * B62_BI + BigInt(v);
+  }
+  // BigInt -> 字节数组（取低 len 字节）
+  const bytes = [];
+  for (let i = 0; i < len; i++) {
+    bytes.unshift(Number(num & 255n));
+    num = num >> 8n;
+  }
+  try {
+    const name = new TextDecoder().decode(new Uint8Array(bytes));
+    return { ok: true, name, nextPos: pos + n };
+  } catch (e) {
+    return { ok: false, msg: '名称解码失败' };
+  }
+}
+
 function encodeDeckCode() {
   const mainEntries = buildEntries(deck.main);
   const sideEntries = buildEntries(deck.side);
 
-  let s = CODE_PREFIX;
+  let s = 'B';  // 新格式前缀（支持卡组名称）
+  s += encodeName(deck.name || '');
   s += b62en(mainEntries.length);
   for (const e of mainEntries) s += entryToChars(e);
   s += b62en(sideEntries.length);
@@ -3515,10 +3621,23 @@ function encodeDeckCode() {
 
 function decodeDeckCode(code) {
   if (typeof code !== 'string' || !code) return { ok: false, msg: '码为空' };
-  if (code[0] !== CODE_PREFIX) return { ok: false, msg: `无法识别：缺少前缀 ${CODE_PREFIX}` };
+
+  // 兼容旧格式 A（无名称）
+  if (code[0] === 'A') {
+    const r = decodeLegacyA(code);
+    if (r.ok) return r;
+  }
+
+  if (code[0] !== 'B') return { ok: false, msg: '无法识别：缺少前缀 B 或 A' };
 
   const ids = sortedCardIds();
   let pos = 1;
+
+  // 读名称
+  const nameRes = decodeName(code, pos);
+  if (!nameRes.ok) return nameRes;
+  const name = nameRes.name;
+  pos = nameRes.nextPos;
 
   const readCount = () => {
     const c = b62de(code[pos++]);
@@ -3552,7 +3671,44 @@ function decodeDeckCode(code) {
   const side = readEntries(sideCount);
   if (side.error) return { ok: false, msg: side.error };
 
-  return { ok: true, main, side };
+  return { ok: true, main, side, name };
+}
+
+// 旧格式 A（无名称）解码
+function decodeLegacyA(code) {
+  if (code[0] !== 'A') return { ok: false };
+  const ids = sortedCardIds();
+  let pos = 1;
+  const readCount = () => {
+    const c = b62de(code[pos++]);
+    return c === -1 ? null : c;
+  };
+  const readEntries = (limit) => {
+    const out = {};
+    for (let i = 0; i < limit; i++) {
+      const pair = code.slice(pos, pos + 2);
+      if (pair.length < 2) return { error: '码长度不足' };
+      const entry = charsToEntry(pair);
+      if (!entry) return { error: `无效字符「${pair}」` };
+      const id = ids[entry.index];
+      out[id] = (out[id] || 0) + entry.count;
+      pos += 2;
+    }
+    return out;
+  };
+  try {
+    const mainCount = readCount();
+    if (mainCount === null) return { ok: false };
+    const main = readEntries(mainCount);
+    if (main.error) return { ok: false };
+    const sideCount = readCount();
+    if (sideCount === null) return { ok: false };
+    const side = readEntries(sideCount);
+    if (side.error) return { ok: false };
+    return { ok: true, main, side, name: '' };
+  } catch (e) {
+    return { ok: false };
+  }
 }
 
 /* ---------- 短码弹窗逻辑 ---------- */
@@ -3573,10 +3729,9 @@ function openCodeModal(mode) {
     text.classList.add('readonly');
     copyBtn.style.display = '';
     importBtn.style.display = 'none';
-    const n = code.length;
-    countEl.textContent = `长度 ${n} / 120 字符`;
-    countEl.className = 'code-count ' + (n <= 120 ? 'ok' : 'bad');
-    desc.textContent = '仅含英文字母与数字。每张出现过的卡 = 2 个字符，主卡组在前、额外卡组在后。可直接分享给他人导入。';
+    countEl.textContent = '';
+    countEl.className = 'code-count';
+    desc.textContent = '复制后可直接分享给他人导入。';
   } else {
     title.textContent = '从卡组码导入';
     text.value = '';
@@ -3586,7 +3741,7 @@ function openCodeModal(mode) {
     importBtn.style.display = '';
     countEl.textContent = '';
     countEl.className = 'code-count';
-    desc.textContent = '粘贴卡组码（仅英文字母与数字，格式如：A01a0B2c…）。主卡组最多40个条目、额外最多10个条目。';
+    desc.textContent = '粘贴卡组码即可导入（含卡组名称与主/额外卡组）。';
   }
 
   modal.style.display = 'flex';
@@ -3614,11 +3769,13 @@ function importCodeFromModal() {
     toast('导入成功，但存在规则问题（见提示）', 'ok');
   }
 
+  deck.name = r.name || '';
   deck.main = r.main;
   deck.side = r.side;
+  syncDeckNameInput();
   closeCodeModal();
   renderAll();
-  toast(`导入成功：主 ${total(deck.main)} 张 / 额外 ${total(deck.side)} 张`, 'ok');
+  toast(`导入成功：主 ${total(deck.main)} 张 / 额外 ${total(deck.side)} 张${deck.name ? ' · 「' + deck.name + '」' : ''}`, 'ok');
 }
 
 function copyCodeFromModal() {
@@ -3788,6 +3945,14 @@ document.getElementById('tts-modal').addEventListener('click', e => {
 // 更新日志
 const CHANGELOG = [
   {
+    ver: 'v1.6.2',
+    date: '2026-08-11',
+    desc: [
+      '可以给卡组命名啦！',
+      '优化手机 UI 布局'
+    ]
+  },
+  {
     ver: 'v1.6.1',
     date: '2026-08-11',
     desc: [
@@ -3893,7 +4058,7 @@ window.addEventListener('drop', e => {
   }
 });
 
-/* ---------- 持久化 ---------- */
+/* ---------- 持久化（刷新后卡组与名称均保留） ---------- */
 function saveDeck() {
   try { localStorage.setItem('ap_deck', JSON.stringify(deck)); } catch (e) {}
 }
@@ -3902,14 +4067,66 @@ function loadDeck() {
     const raw = localStorage.getItem('ap_deck');
     if (!raw) return;
     const d = JSON.parse(raw);
+    if (typeof d.name === 'string') deck.name = d.name;
     for (const k in d.main) if (CARD_MAP[k]) deck.main[k] = d.main[k];
     for (const k in d.side) if (CARD_MAP[k]) deck.side[k] = d.side[k];
+    syncDeckNameInput();
+    renderDeck();
   } catch (e) {}
 }
 
+// 同步卡组名称显示（铅笔样式：有名称显示「名称+下划线+铅笔」，无名称显示占位）
+function syncDeckNameInput() {
+  const wrap = document.getElementById('deck-name-wrap');
+  const text = document.getElementById('deck-name-text');
+  if (!wrap || !text) return;
+  if (deck.name) {
+    text.textContent = deck.name;
+    wrap.classList.remove('empty');
+  } else {
+    text.textContent = '命名卡组';
+    wrap.classList.add('empty');
+  }
+}
+
+// 卡组命名弹窗
+function openDeckNameModal() {
+  const input = document.getElementById('deck-name-input');
+  input.value = deck.name || '';
+  document.getElementById('deck-name-modal').style.display = 'flex';
+  input.focus();
+  input.select();
+}
+function closeDeckNameModal() {
+  document.getElementById('deck-name-modal').style.display = 'none';
+}
+function confirmDeckName() {
+  const input = document.getElementById('deck-name-input');
+  deck.name = input.value.trim();
+  syncDeckNameInput();
+  saveDeck();
+  closeDeckNameModal();
+}
+
+// 点击铅笔区域打开命名弹窗
+document.getElementById('deck-name-wrap').addEventListener('click', openDeckNameModal);
+document.getElementById('deck-name-modal-cancel').addEventListener('click', closeDeckNameModal);
+document.getElementById('deck-name-modal-ok').addEventListener('click', confirmDeckName);
+document.getElementById('deck-name-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDeckNameModal();
+});
+// 回车确认
+document.getElementById('deck-name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmDeckName();
+  if (e.key === 'Escape') closeDeckNameModal();
+});
+
 /* ---------- 初始化 ---------- */
-loadDeck();
-loadCards();  // 异步加载：优先 API，失败回退内置
+syncDeckNameInput();  // 初始渲染卡组名称显示（空态显示"命名卡组"占位）
+loadCards().then(() => {
+  // 等 CARD_MAP 填充后再恢复卡组，避免空映射导致恢复失败
+  loadDeck();
+});
 </script>
 </body>
 </html>
