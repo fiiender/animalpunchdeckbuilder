@@ -796,6 +796,12 @@ function removeFromMain(id) {
   if (deck.main[id] <= 0) delete deck.main[id];
   renderAll();
 }
+// 直接从主卡组移除该类卡牌（清空该卡所有数量）
+function removeAllFromMain(id) {
+  if (!deck.main[id]) return;
+  delete deck.main[id];
+  renderAll();
+}
 function addToSide(id) {
   const r = checkAddToSide(id);
   if (!r.ok) { toast(r.msg, 'error'); return; }
@@ -806,6 +812,12 @@ function removeFromSide(id) {
   if (!deck.side[id]) return;
   deck.side[id]--;
   if (deck.side[id] <= 0) delete deck.side[id];
+  renderAll();
+}
+// 直接从额外卡组移除该类卡牌（清空该卡所有数量）
+function removeAllFromSide(id) {
+  if (!deck.side[id]) return;
+  delete deck.side[id];
   renderAll();
 }
 function moveToSide(id) {
@@ -959,12 +971,12 @@ function deckRows(obj, zone) {
           </div>
         </div>
         <div class="dcount">
-          <button onclick="${zone === 'main' ? `removeFromMain('${id}')` : `removeFromSide('${id}')`}" ${cnt <= 1 ? 'disabled' : ''}>−</button>
+          <button title="数量减1" onclick="${zone === 'main' ? `removeFromMain('${id}')` : `removeFromSide('${id}')`}" ${cnt <= 1 ? 'disabled' : ''}>−</button>
           <span class="n">${cnt}</span>
-          <button onclick="${zone === 'main' ? `addToMain('${id}')` : `addToSide('${id}')`}">+</button>
+          <button title="数量加1" onclick="${zone === 'main' ? `addToMain('${id}')` : `addToSide('${id}')`}">+</button>
         </div>
         ${moveBtn}
-        <button class="row-action del" title="移除" onclick="${zone === 'main' ? `removeFromMain('${id}')` : `removeFromSide('${id}')`}">✕</button>
+        <button class="row-action del" title="移除该类卡牌（全部）" onclick="${zone === 'main' ? `removeAllFromMain('${id}')` : `removeAllFromSide('${id}')`}">✕</button>
       </div>`;
   }).join('');
 }
