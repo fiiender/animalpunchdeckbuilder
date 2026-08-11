@@ -1340,7 +1340,7 @@ function exportTTS() {
   toast(`已导出 TTS 存档：主 ${total(deck.main)} / 额外 ${total(deck.side)}`, 'ok');
 }
 
-// 从 TTS 存档导入（参考 aas.json：第一个 Deck 为主卡组，后续为额外卡组）
+// 从 TTS 存档导入（按卡组张数区分主/额外：张数多的为主卡组）
 function importTTS(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -1360,7 +1360,7 @@ function importTTS(file) {
       return;
     }
 
-    // 第一个 Deck 为主卡组，其余为额外卡组
+    // 解析每个 Deck 为 {cards, total}
     const parseDeck = (obj) => {
       const counts = {};
       for (const cid of obj.DeckIDs) counts[cid] = (counts[cid] || 0) + 1;
@@ -1372,14 +1372,22 @@ function importTTS(file) {
         const cardId = ttsSlotToCardId(deckNo, slot);
         if (cardId) result[cardId] = (result[cardId] || 0) + count;
       }
-      return result;
+      const total = obj.DeckIDs.length;
+      return { cards: result, total };
     };
 
-    const main = parseDeck(deckObjects[0]);
+    const parsedDecks = deckObjects.map(parseDeck);
+
+    // 按张数排序：张数多的作为主卡组，少的作为额外卡组
+    // （主卡组规则 30~40 张，额外 ≤10 张，张数明显可区分）
+    parsedDecks.sort((a, b) => b.total - a.total);
+    const mainDeck = parsedDecks[0];
+    const main = mainDeck.cards;
+
+    // 其余合并为额外卡组
     const side = {};
-    for (let i = 1; i < deckObjects.length; i++) {
-      const parsed = parseDeck(deckObjects[i]);
-      for (const [id, count] of Object.entries(parsed)) {
+    for (let i = 1; i < parsedDecks.length; i++) {
+      for (const [id, count] of Object.entries(parsedDecks[i].cards)) {
         side[id] = (side[id] || 0) + count;
       }
     }
