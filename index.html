@@ -146,7 +146,7 @@
 
   .lib-count { padding: 8px 16px 0; font-size: 12px; color: var(--text-faint); flex: none; }
 
-  .lib-grid-wrap { flex: 1; overflow-y: auto; padding: 12px 16px 24px; }
+  .lib-grid-wrap { flex: 1; overflow-y: auto; padding: 12px 16px 24px; scrollbar-gutter: stable; }
   .lib-grid {
     display: grid; gap: 12px;
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
@@ -257,7 +257,10 @@
   }
   .level-chip b { color: var(--text); }
 
-  .deck-body { flex: 1; overflow-y: auto; padding: 6px 16px 24px; }
+  .deck-body {
+    flex: 1; overflow-y: auto; padding: 6px 16px 24px;
+    scrollbar-gutter: stable;   /* 始终预留滚动条槽位，滚动条出现时内容不移位 */
+  }
   .deck-section { margin-top: 16px; }
   .section-head {
     display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;
@@ -571,7 +574,7 @@
         <div class="deck-section">
           <div class="section-head">
             <h3>主卡组</h3>
-            <span class="rule">30~40 张 · 最多3构筑色 · SP同名≤2 · EX同名≤1且≤3张</span>
+            <span class="rule">30~40 张</span>
             <span class="scount" id="main-scount"></span>
           </div>
           <div class="deck-list" id="main-list"></div>
@@ -3788,36 +3791,30 @@ const CHANGELOG = [
     ver: 'v1.6.1',
     date: '2026-08-11',
     desc: [
-      '修复卡组区标题栏在窄屏下换行跳动的问题：标题、规则说明、剩余张数提示现固定单行，删除/添加卡牌时布局不再跳动',
-      '规则说明过长时自动省略，不挤压右侧剩余张数提示'
+      '修复一些 UI 偏移，优化使用体验'
     ]
   },
   {
     ver: 'v1.6',
     date: '2026-08-11',
     desc: [
-      '改为完全静态加载：打开网页不再请求 API，加载更快、零网络依赖',
-      '数据同步独立为 update-cards.html（主机用），访客页面不显示任何同步入口',
-      '访客访问部署版时始终为静态，不触发任何 API 请求'
+      '改为完全静态加载，打开更快、零网络请求',
+      '数据同步独立为 update-cards.html（主机用）'
     ]
   },
   {
     ver: 'v1.5',
     date: '2026-08-11',
     desc: [
-      'Tabletop Simulator 存档互通（本组卡器核心新增）：',
-      '· <b>导出TTS</b>：主卡组、额外卡组各生成独立 Deck 对象，可在 TTS 中直接加载',
-      '· <b>导入TTS</b>：解析 TTS 存档，按卡组张数自动区分主/额外卡组（不依赖序号顺序）',
-      '· 支持全部 7 种颜色卡表（橙/黄/绿/蓝/褐/粉/白），经多个真实存档验证',
-      '· 新增 TTS 教程弹窗，提示存档文件位置'
+      'Tabletop Simulator 存档互通（导出 / 导入）'
     ]
   },
   {
     ver: 'v1.4',
     date: '2026-08-11',
     desc: [
-      '新增「更新日志」按钮',
-      '导入导出精简：删除原有 JSON 文件导入导出，仅保留短码与 TTS'
+      '新增更新日志',
+      '导入导出精简为短码与 TTS'
     ]
   },
   {
@@ -3825,32 +3822,28 @@ const CHANGELOG = [
     date: '2026-08-11',
     desc: [
       '移动端竖屏适配',
-      '导出码改为英数编码（≤120 字符）',
-      'EX 同名卡最多 1 张'
+      '导出码改为英数编码，EX 同名限 1 张'
     ]
   },
   {
     ver: 'v1.2',
     date: '2026-08-11',
     desc: [
-      '新增力量检索、取消选卡自动回顶',
-      '新增 60 字符内紧凑编码导入导出'
+      '新增力量检索、紧凑短码导入导出'
     ]
   },
   {
     ver: 'v1.1',
     date: '2026-08-11',
     desc: [
-      '卡牌数据改为 API 实时加载 + 内置回退',
-      '新增一键移入额外卡组快捷方式'
+      '卡牌数据内置加载，一键移入额外卡组'
     ]
   },
   {
     ver: 'v1.0',
     date: '2026-08-11',
     desc: [
-      '组卡器初版：卡牌库搜索/筛选、主/额外卡组构筑',
-      '构筑规则：主卡组 30~40、额外 ≤10、最多 3 构筑色（白不计入）、SP 同名 ≤2、EX 同名 ≤1 且总数 ≤3、普通卡同名 ≤3'
+      '组卡器初版'
     ]
   }
 ];
