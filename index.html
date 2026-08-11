@@ -471,7 +471,8 @@
     .header-actions .btn { padding: 6px 10px; font-size: 12px; }
     .header-actions .ha-row { display: flex; align-items: center; }
     #ha-row-code { justify-content: flex-end; }
-    #ha-row-tts { grid-column: 1 / -1; justify-content: flex-end; }
+    #ha-row-tts { grid-column: 1 / -1; justify-content: space-between; }
+    #ha-row-tts .tts-btns { display: flex; gap: 8px; align-items: center; }
     .src-status { justify-self: start; }
 
     .rules { padding: 6px 12px; gap: 4px 12px; font-size: 11px; }
@@ -517,7 +518,6 @@
   <header>
     <div class="logo">拳</div>
     <h1>动物之拳 ANIMAL PUNCH! <small>组卡器</small></h1>
-    <button class="btn ghost header-center-btn" id="btn-changelog" title="查看更新日志">更新日志</button>
     <div class="header-actions">
       <span class="src-status" id="src-status" title="卡牌数据来源"><span class="src-dot"></span><span id="src-status-text">加载中…</span></span>
       <div class="ha-row" id="ha-row-code">
@@ -525,9 +525,12 @@
         <button class="btn ghost" id="btn-export-code" title="将卡组导出为120字符内的英数短码">复制码</button>
       </div>
       <div class="ha-row" id="ha-row-tts">
-        <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
-        <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
-        <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
+        <button class="btn ghost" id="btn-changelog" title="查看更新日志">更新日志</button>
+        <div class="tts-btns">
+          <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
+          <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
+          <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
+        </div>
       </div>
     </div>
   </header>
