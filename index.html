@@ -259,10 +259,21 @@
 
   .deck-body { flex: 1; overflow-y: auto; padding: 6px 16px 24px; }
   .deck-section { margin-top: 16px; }
-  .section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
-  .section-head h3 { font-size: 15px; font-weight: 700; }
-  .section-head .rule { font-size: 11px; color: var(--text-faint); }
-  .section-head .scount { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+  .section-head {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;
+    flex-wrap: nowrap;              /* 禁止换行，避免头部高度跳动 */
+  }
+  .section-head h3 { font-size: 15px; font-weight: 700; flex: none; }
+  .section-head .rule {
+    font-size: 11px; color: var(--text-faint);
+    flex: 1 1 auto;                 /* 规则说明占据可伸缩空间 */
+    min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;  /* 过长则省略，不挤压计数 */
+  }
+  .section-head .scount {
+    margin-left: auto; font-size: 12px; color: var(--text-dim);
+    flex: none; white-space: nowrap;  /* 计数固定宽度不换行 */
+  }
 
   .deck-list { display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
   .deck-row {
@@ -3773,6 +3784,14 @@ document.getElementById('tts-modal').addEventListener('click', e => {
 
 // 更新日志
 const CHANGELOG = [
+  {
+    ver: 'v1.6.1',
+    date: '2026-08-11',
+    desc: [
+      '修复卡组区标题栏在窄屏下换行跳动的问题：标题、规则说明、剩余张数提示现固定单行，删除/添加卡牌时布局不再跳动',
+      '规则说明过长时自动省略，不挤压右侧剩余张数提示'
+    ]
+  },
   {
     ver: 'v1.6',
     date: '2026-08-11',

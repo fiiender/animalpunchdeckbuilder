@@ -2,6 +2,8 @@
 
 一个基于网页的卡组构筑工具，卡牌数据来自 [animalpunch.cn](https://animalpunch.cn/gallery)。
 
+**当前版本：v1.6.1**
+
 ## 功能
 
 - 卡牌库：搜索、按颜色/稀有度/等级/力量筛选
