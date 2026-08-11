@@ -7,16 +7,17 @@
 - 卡牌库：搜索、按颜色/稀有度/等级/力量筛选
 - 卡组构筑：主卡组 + 额外卡组，实时规则校验
 - 规则：主卡组 30~40 张、额外 ≤10、最多 3 种构筑色（白不计入）、SP 同名 ≤2、EX 同名 ≤1 且总数 ≤3、普通卡同名 ≤3
-- 导入导出：JSON 文件 / 120 字符内英数短码 / **Tabletop Simulator 存档互通**
+- 导入导出：120 字符内英数短码 / Tabletop Simulator 存档互通
 - 移动端竖屏适配
 
 ## Tabletop Simulator 互通
 
-支持将卡组导出为 TTS 存档（`.json`），放入 `我的文档\My Games\Tabletop Simulator\Saves\` 后可在 TTS 中 Load；也支持直接导入 TTS 存档还原卡组。
+支持将卡组导出为 TTS 存档（`.json`），放入 TTS 存档目录后可在游戏中 Load；也支持直接导入 TTS 存档还原卡组（主/额外卡组自动分到对应区域）。
 
-- **导出TTS**：当前卡组 → TTS 存档，使用动物之拳 TTS 模组的卡表（7 个卡表对应 7 种颜色）
-- **导入TTS**：读取 TTS 存档的 DeckIDs，按卡表映射还原卡组
-- 卡表映射已通过 4 个真实存档验证（or / qkg / gpt / www）
+- **导出TTS**：主卡组、额外卡组各生成一个独立 Deck 对象，使用动物之拳 TTS 模组的卡表
+- **导入TTS**：读取 TTS 存档的多个 Deck 对象，第一个为主卡组、其余为额外卡组
+- 卡表映射覆盖全部 7 种颜色（橙/黄/绿/蓝/褐/粉/白），经 5 个真实存档验证
+- TTS 存档位置（通常）：`C:\Users\x\Documents\My Games\Tabletop Simulator\Saves\Saved Objects`
 
 ## 使用
 
