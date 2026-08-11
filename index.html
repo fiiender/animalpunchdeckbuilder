@@ -60,6 +60,7 @@
   }
   header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
   header h1 small { color: var(--text-dim); font-weight: 500; font-size: 12px; margin-left: 8px; }
+  .header-center-btn { margin-left: 10px; flex: none; }
   .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .btn {
     border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--text);
@@ -347,6 +348,15 @@
     word-break: break-all; user-select: all;
   }
 
+  /* 更新日志 */
+  .changelog-list { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .changelog-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .changelog-item:last-child { border-bottom: none; }
+  .changelog-item .cl-ver { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .changelog-item .cl-date { font-size: 11px; color: var(--text-faint); margin-left: 8px; }
+  .changelog-item .cl-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.7; }
+  .changelog-item .cl-desc li { margin-left: 16px; }
+
   /* 移动端卡面预览（浮层，不占用布局空间） */
   .mobile-preview {
     position: fixed; inset: 0; z-index: 400;
@@ -461,6 +471,7 @@
   <header>
     <div class="logo">拳</div>
     <h1>动物之拳 ANIMAL PUNCH! <small>组卡器</small></h1>
+    <button class="btn ghost header-center-btn" id="btn-changelog" title="查看更新日志">更新日志</button>
     <div class="header-actions">
       <span class="src-status" id="src-status" title="卡牌数据来源"><span class="src-dot"></span><span id="src-status-text">加载中…</span></span>
       <button class="btn ghost" id="btn-import-code" title="从短码导入卡组">导入码</button>
@@ -613,6 +624,17 @@
     <div class="m-actions">
       <button class="btn ghost" id="tts-modal-cancel">关闭</button>
       <button class="btn primary" id="tts-modal-proceed" style="display:none">继续</button>
+    </div>
+  </div>
+</div>
+
+<!-- 更新日志弹窗 -->
+<div class="modal-mask" id="changelog-modal" style="display:none">
+  <div class="modal">
+    <h3>更新日志</h3>
+    <div class="changelog-list" id="changelog-list"></div>
+    <div class="m-actions">
+      <button class="btn ghost" id="changelog-modal-cancel">关闭</button>
     </div>
   </div>
 </div>
@@ -1790,6 +1812,80 @@ document.getElementById('tts-modal-proceed').addEventListener('click', () => {
 });
 document.getElementById('tts-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeTTSModal();
+});
+
+// 更新日志
+const CHANGELOG = [
+  {
+    ver: 'v1.5',
+    date: '2026-08-11',
+    desc: [
+      'Tabletop Simulator 存档互通（本组卡器核心新增）：',
+      '· <b>导出TTS</b>：主卡组、额外卡组各生成独立 Deck 对象，可在 TTS 中直接加载',
+      '· <b>导入TTS</b>：解析 TTS 存档，按卡组张数自动区分主/额外卡组（不依赖序号顺序）',
+      '· 支持全部 7 种颜色卡表（橙/黄/绿/蓝/褐/粉/白），经多个真实存档验证',
+      '· 新增 TTS 教程弹窗，提示存档文件位置'
+    ]
+  },
+  {
+    ver: 'v1.4',
+    date: '2026-08-11',
+    desc: [
+      '新增「更新日志」按钮',
+      '导入导出精简：删除原有 JSON 文件导入导出，仅保留短码与 TTS'
+    ]
+  },
+  {
+    ver: 'v1.3',
+    date: '2026-08-11',
+    desc: [
+      '移动端竖屏适配',
+      '导出码改为英数编码（≤120 字符）',
+      'EX 同名卡最多 1 张'
+    ]
+  },
+  {
+    ver: 'v1.2',
+    date: '2026-08-11',
+    desc: [
+      '新增力量检索、取消选卡自动回顶',
+      '新增 60 字符内紧凑编码导入导出'
+    ]
+  },
+  {
+    ver: 'v1.1',
+    date: '2026-08-11',
+    desc: [
+      '卡牌数据改为 API 实时加载 + 内置回退',
+      '新增一键移入额外卡组快捷方式'
+    ]
+  },
+  {
+    ver: 'v1.0',
+    date: '2026-08-11',
+    desc: [
+      '组卡器初版：卡牌库搜索/筛选、主/额外卡组构筑',
+      '构筑规则：主卡组 30~40、额外 ≤10、最多 3 构筑色（白不计入）、SP 同名 ≤2、EX 同名 ≤1 且总数 ≤3、普通卡同名 ≤3'
+    ]
+  }
+];
+function openChangelog() {
+  const list = document.getElementById('changelog-list');
+  list.innerHTML = CHANGELOG.map(item => `
+    <div class="changelog-item">
+      <span class="cl-ver">${item.ver}</span><span class="cl-date">${item.date}</span>
+      <ul class="cl-desc">${item.desc.map(d => `<li>${d}</li>`).join('')}</ul>
+    </div>
+  `).join('');
+  document.getElementById('changelog-modal').style.display = 'flex';
+}
+function closeChangelog() {
+  document.getElementById('changelog-modal').style.display = 'none';
+}
+document.getElementById('btn-changelog').addEventListener('click', openChangelog);
+document.getElementById('changelog-modal-cancel').addEventListener('click', closeChangelog);
+document.getElementById('changelog-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeChangelog();
 });
 
 // 短码按钮
