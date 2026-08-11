@@ -12,6 +12,11 @@
 
 ## 使用
 
-直接用浏览器打开 `animal-punch-deck-builder.html` 即可使用（单文件，无依赖）。
+直接用浏览器打开 `index.html` 即可使用（单文件，无依赖）。
 
 卡牌数据优先从 API 实时加载，跨域受限时自动回退到内置数据。
+
+## 部署
+
+- **GitHub Pages**：推送到 main 分支后，在仓库 Settings → Pages 选择 main 分支根目录即可
+- **腾讯云静态托管**：从 GitHub 导入仓库，构建命令留空，输出目录填 `.`（根目录）

@@ -5,6 +5,6 @@
     "type": "static",
     "deployMode": "ci",
     "buildCommand": "",
-    "outputDir": "dist"
+    "outputDir": "."
   }
 }
