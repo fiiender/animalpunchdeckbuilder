@@ -1,0 +1,10 @@
+{
+  "envId": "{{env.ENV_ID}}",
+  "framework": {
+    "name": "animal-punch-deck-builder",
+    "type": "static",
+    "deployMode": "ci",
+    "buildCommand": "",
+    "outputDir": "dist"
+  }
+}
