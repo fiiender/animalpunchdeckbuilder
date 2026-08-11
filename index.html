@@ -455,6 +455,8 @@
       <button class="btn ghost" id="btn-export-code" title="将卡组导出为120字符内的英数短码">复制码</button>
       <button class="btn ghost" id="btn-import" title="从 .json 文件导入卡组">导入</button>
       <button class="btn ghost" id="btn-export" title="导出卡组为 .json 文件">导出</button>
+      <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
+      <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
       <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
     </div>
   </header>
@@ -605,6 +607,7 @@ const MAIN_MIN = 30, MAIN_MAX = 40, SIDE_MAX = 10;
 let CARDS = [];      // 当前使用的卡牌数据
 let CARD_MAP = {};   // id -> card
 const deck = { main: {}, side: {} };
+let importMode = 'standard'; // 文件导入模式：'standard' 网站格式 / 'tts' TTS存档
 
 /* ---------- 数据加载：优先直连 API → 代理 → 内置回退 ---------- */
 const PROXY_URL = 'https://proxy.cors.sh/';
@@ -1152,6 +1155,334 @@ function validateDeck(main, side) {
   return issues;
 }
 
+/* ---------- TTS (Tabletop Simulator) 导入 / 导出 ----------
+   TTS 卡组存档结构：
+   - ObjectStates[] 里的 Deck 对象有 DeckIDs（每张卡的 CardID，可重复）
+   - CustomDeck 字典定义卡表：key 为卡表号，FaceURL 指向卡表图
+   - CardID = 卡表号×100 + (槽位-1)，槽位从1开始，低两位是0基槽位
+   动物之拳模组卡表布局（已通过存档验证）：
+   - 卡表1 = 橙 O:   槽位1-21 = 001-021, 22=EX01, 23=EX02
+   - 卡表3 = 黄 Y:   槽位1-21 = 022-042, 22=EX03, 23=EX04
+   - 卡表4 = 绿 G:   槽位1-21 = 043-063, 22=EX05, 23=EX06
+   - 卡表5 = 蓝 U:   槽位1-21 = 064-084, 22=EX07, 23=EX08
+   - 卡表6 = 褐 B:   槽位1-21 = 085-105, 22=EX09, 23=EX10
+   - 卡表7 = 粉 P:   槽位1-21 = 106-126, 22=EX11, 23=EX12
+   - 卡表8 = 白 W:   槽位1-6  = PaF01-PaF06
+   （卡表2 未在模组中定义，跳过）
+   注意：导出时复用一个卡表号（取9），避免与模组既有卡表冲突；导入时支持任意卡表号。 */
+
+// 颜色 -> 卡表号（动物之拳模组固定布局）
+const TTS_COLOR_DECK = { O: 1, Y: 3, G: 4, U: 5, B: 6, P: 7, W: 8 };
+
+// 卡牌id -> { deck, slot }（slot 为 1 基）
+function ttsCardLocation(id) {
+  const c = CARD_MAP[id];
+  if (!c) return null;
+  const deck = TTS_COLOR_DECK[c.color];
+  if (!deck) return null;
+
+  // 白色菌植 PaF01-06
+  if (c.color === 'W') {
+    const n = parseInt(id.replace(/^PaF/, ''), 10);
+    if (n >= 1 && n <= 6) return { deck, slot: n };
+    return null;
+  }
+
+  // EX 卡：该色第1个EX->22, 第2个EX->23
+  if (c.rarity === 'EX') {
+    const exSeq = { O: ['EX01','EX02'], Y: ['EX03','EX04'], G: ['EX05','EX06'],
+                    U: ['EX07','EX08'], B: ['EX09','EX10'], P: ['EX11','EX12'] }[c.color] || [];
+    const idx = exSeq.indexOf(id);
+    if (idx === -1) return null;
+    return { deck, slot: 22 + idx };
+  }
+
+  // 普通卡：编号 = 卡表内槽位映射
+  // 卡表内槽位 = 编号 - 该色起始编号 + 1
+  const startNum = { O: 1, Y: 22, G: 43, U: 64, B: 85, P: 106, W: 1 }[c.color];
+  const m = String(id).match(/(\d+)/);
+  if (!m) return null;
+  const num = parseInt(m[1], 10);
+  // 普通卡必须在该色编号区间内
+  const endNum = startNum + 20; // 每个颜色21张普通卡
+  if (num < startNum || num > endNum) return null;
+  const slot = num - startNum + 1;
+  return { deck, slot };
+}
+
+// 生成 TTS 存档 JSON
+function exportTTS() {
+  const mainEntries = [];   // {cardId, count}
+  for (const [id, count] of Object.entries(deck.main)) {
+    mainEntries.push({ id, count });
+  }
+  const sideEntries = [];
+  for (const [id, count] of Object.entries(deck.side)) {
+    sideEntries.push({ id, count });
+  }
+
+  // 构建 DeckIDs：主卡组 + 额外卡组
+  const deckIDs = [];
+  for (const { id, count } of mainEntries) {
+    const loc = ttsCardLocation(id);
+    if (!loc) { toast(`无法映射卡牌 ${id} 到 TTS 卡表`, 'error'); return; }
+    const cardID = loc.deck * 100 + (loc.slot - 1);
+    for (let i = 0; i < count; i++) deckIDs.push(cardID);
+  }
+  for (const { id, count } of sideEntries) {
+    const loc = ttsCardLocation(id);
+    if (!loc) { toast(`无法映射卡牌 ${id} 到 TTS 卡表`, 'error'); return; }
+    const cardID = loc.deck * 100 + (loc.slot - 1);
+    for (let i = 0; i < count; i++) deckIDs.push(cardID);
+  }
+
+  // 收集用到的卡表号
+  const usedDecks = new Set();
+  for (const { id } of [...mainEntries, ...sideEntries]) {
+    const loc = ttsCardLocation(id);
+    if (loc) usedDecks.add(loc.deck);
+  }
+
+  // 构建 CustomDeck（使用动物之拳模组的卡表图 URL）
+  // 卡表图 URL 从模组存档中获取，这里内置已知的 URL
+  const TTS_DECK_URLS = {
+    1: 'https://steamusercontent-a.akamaihd.net/ugc/12878916653411088929/A05F627C967FBE731069B69566719E240D9FB7A8/',
+    3: 'https://steamusercontent-a.akamaihd.net/ugc/12316300303222982484/80222FD58D171B86B89C0DE81EC84FAD62173E43/',
+    4: 'https://steamusercontent-a.akamaihd.net/ugc/16222747381358415923/1C13B9CB93DFCBC40A880BA5F1C29173B074B17A/',
+    5: 'https://steamusercontent-a.akamaihd.net/ugc/17696281501296750507/38D4B94CE5298212A9B3842A0A7F26CFB8BBC73F/',
+    6: 'https://steamusercontent-a.akamaihd.net/ugc/14039108776261181865/A4C77FD87CF6F03BA74209C457E8DD479C12E929/',
+    7: 'https://steamusercontent-a.akamaihd.net/ugc/17442318283519174957/DF2BD7F95F9CBEC7C3EC2B7EA37BBA3CB3DED4F9/',
+    8: 'https://steamusercontent-a.akamaihd.net/ugc/15825716909859457901/B56D750A892D48BD405280F0E49FB92F80DADAF4/'
+  };
+  const BACK_URL = 'https://steamusercontent-a.akamaihd.net/ugc/11707383429762353370/01835E0BD820B394B138890E38AFFB1FAEE3FD1C/';
+
+  const customDeck = {};
+  for (const deckNo of usedDecks) {
+    const url = TTS_DECK_URLS[deckNo];
+    if (!url) { toast(`卡表 ${deckNo} 无对应卡表图`, 'error'); return; }
+    customDeck[String(deckNo)] = {
+      FaceURL: url,
+      BackURL: BACK_URL,
+      NumWidth: 10,
+      NumHeight: deckNo === 8 ? 2 : 3,
+      BackIsHidden: false,
+      UniqueBack: false,
+      Type: 0
+    };
+  }
+
+  // 构建 ContainedObjects（每张卡一个对象）
+  const contained = [];
+  let guidCounter = 1;
+  const mkGuid = () => {
+    // 生成 6 位十六进制 GUID
+    const chars = '0123456789abcdef';
+    let s = '';
+    for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * 16)];
+    return s;
+  };
+
+  for (const { id, count } of [...mainEntries, ...sideEntries]) {
+    const loc = ttsCardLocation(id);
+    const cardID = loc.deck * 100 + (loc.slot - 1);
+    for (let i = 0; i < count; i++) {
+      contained.push({
+        GUID: mkGuid(),
+        Name: 'Card',
+        Transform: {
+          posX: 0, posY: 0, posZ: 0,
+          rotX: 0, rotY: 180, rotZ: 0,
+          scaleX: 1, scaleY: 1, scaleZ: 1
+        },
+        Nickname: CARD_MAP[id] ? CARD_MAP[id].name : '',
+        Description: '',
+        GMNotes: '',
+        AltLookAngle: { x: 0, y: 0, z: 0 },
+        ColorDiffuse: { r: 0.713235259, g: 0.713235259, b: 0.713235259 },
+        LayoutGroupSortIndex: 0,
+        Value: 0,
+        Locked: false,
+        Grid: true,
+        Snap: true,
+        IgnoreFoW: false,
+        MeasureMovement: false,
+        DragSelectable: true,
+        Autoraise: true,
+        Sticky: true,
+        Tooltip: true,
+        GridProjection: false,
+        HideWhenFaceDown: true,
+        Hands: true,
+        CardID: cardID,
+        SidewaysCard: false,
+        CustomDeck: customDeck,
+        LuaScript: '',
+        LuaScriptState: '',
+        XmlUI: ''
+      });
+    }
+  }
+
+  // 组装存档
+  const payload = {
+    SaveName: '动物之拳卡组',
+    Date: new Date().toISOString().replace(/\.\d+Z$/, ''),
+    VersionNumber: '',
+    GameMode: '',
+    GameType: '',
+    GameComplexity: '',
+    Tags: [],
+    Gravity: 0.5,
+    PlayArea: 0.5,
+    Table: '',
+    Sky: '',
+    Note: '',
+    TabStates: {},
+    LuaScript: '',
+    LuaScriptState: '',
+    XmlUI: '',
+    ObjectStates: [{
+      GUID: mkGuid(),
+      Name: 'Deck',
+      Transform: {
+        posX: 0, posY: 1, posZ: 0,
+        rotX: 0, rotY: 180, rotZ: 0,
+        scaleX: 1, scaleY: 1, scaleZ: 1
+      },
+      Nickname: `主${total(deck.main)}/额外${total(deck.side)}`,
+      Description: '',
+      GMNotes: '',
+      AltLookAngle: { x: 0, y: 0, z: 0 },
+      ColorDiffuse: { r: 0.713235259, g: 0.713235259, b: 0.713235259 },
+      LayoutGroupSortIndex: 0,
+      Value: 0,
+      Locked: false,
+      Grid: true,
+      Snap: true,
+      IgnoreFoW: false,
+      MeasureMovement: false,
+      DragSelectable: true,
+      Autoraise: true,
+      Sticky: true,
+      Tooltip: true,
+      GridProjection: false,
+      HideWhenFaceDown: true,
+      Hands: false,
+      SidewaysCard: false,
+      DeckIDs: deckIDs,
+      CustomDeck: customDeck,
+      LuaScript: '',
+      LuaScriptState: '',
+      XmlUI: '',
+      ContainedObjects: contained
+    }]
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  a.download = `动物之拳卡组_TTS_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`已导出 TTS 存档：主 ${total(deck.main)} / 额外 ${total(deck.side)}`, 'ok');
+}
+
+// 从 TTS 存档导入
+function importTTS(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(reader.result);
+    } catch (e) {
+      toast('导入失败：文件格式不正确', 'error');
+      return;
+    }
+
+    // 判断是否为 TTS 存档（有 ObjectStates 和 DeckIDs）
+    const objs = Array.isArray(data.ObjectStates) ? data.ObjectStates : [];
+    let main = {}, side = {};
+    let found = false;
+
+    for (const obj of objs) {
+      if (!obj || !Array.isArray(obj.DeckIDs)) continue;
+      const ids = obj.DeckIDs;
+      // 分组计数
+      const counts = {};
+      for (const cid of ids) {
+        counts[cid] = (counts[cid] || 0) + 1;
+      }
+      for (const [cidStr, count] of Object.entries(counts)) {
+        const cid = parseInt(cidStr, 10);
+        const deckNo = Math.floor(cid / 100);
+        const slot = (cid % 100) + 1;  // 0基 -> 1基
+        const cardId = ttsSlotToCardId(deckNo, slot);
+        if (cardId) {
+          main[cardId] = (main[cardId] || 0) + count;
+          found = true;
+        }
+      }
+    }
+
+    if (!found) {
+      // 不是 TTS 存档，提示
+      toast('未在文件中找到 TTS 卡组数据', 'error');
+      return;
+    }
+
+    // 规则校验
+    const issues = validateDeck(main, {});
+    if (issues.length) {
+      console.warn('TTS导入规则提示:', issues);
+    }
+
+    deck.main = main;
+    deck.side = {};
+    renderAll();
+    toast(`TTS 导入成功：主 ${total(deck.main)} 张`, 'ok');
+  };
+  reader.readAsText(file);
+}
+
+// 根据卡表号和槽位反查卡牌id
+function ttsSlotToCardId(deckNo, slot) {
+  // 卡表号 -> 颜色
+  const deckColor = {};
+  for (const [color, dk] of Object.entries(TTS_COLOR_DECK)) {
+    deckColor[dk] = color;
+  }
+  const color = deckColor[deckNo];
+  if (!color) return null;
+
+  // 白色菌植
+  if (color === 'W') {
+    if (slot >= 1 && slot <= 6) return `PaF0${slot}`;
+    return null;
+  }
+
+  // EX 槽位 22/23
+  if (slot === 22 || slot === 23) {
+    const exSeq = { O: ['EX01','EX02'], Y: ['EX03','EX04'], G: ['EX05','EX06'],
+                    U: ['EX07','EX08'], B: ['EX09','EX10'], P: ['EX11','EX12'] }[color] || [];
+    return exSeq[slot - 22] || null;
+  }
+
+  // 普通卡：槽位 -> 编号
+  const startNum = { O: 1, Y: 22, G: 43, U: 64, B: 85, P: 106 }[color];
+  if (!startNum) return null;
+  const num = startNum + slot - 1;
+  if (num < startNum || num > startNum + 20) return null;
+  // 编号 -> 卡牌id（优先 SP）
+  const candidates = CARDS.filter(c => c.color === color && String(c.id).match(/(\d+)/) && parseInt(String(c.id).match(/(\d+)/)[1], 10) === num);
+  if (!candidates.length) return null;
+  return candidates[0].id;
+}
+
 /* ---------- 短码编码 / 解码 ----------
    编码方案（仅英文字母+数字，≤120字符）：
    - 每张「出现过的卡牌」= 2 个 base62 字符（0-9A-Za-z）
@@ -1460,8 +1791,12 @@ grid.addEventListener('mousemove', e => { if (!isMobileLayout() && tip.classList
 grid.addEventListener('mouseleave', () => { if (!isMobileLayout()) hideTip(); });
 
 document.getElementById('btn-export').addEventListener('click', exportDeck);
-document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('btn-import').addEventListener('click', () => { importMode = 'standard'; document.getElementById('file-input').click(); });
 document.getElementById('btn-clear').addEventListener('click', clearDeck);
+
+// TTS 按钮
+document.getElementById('btn-export-tts').addEventListener('click', exportTTS);
+document.getElementById('btn-import-tts').addEventListener('click', () => { importMode = 'tts'; document.getElementById('file-input').click(); });
 
 // 短码按钮
 document.getElementById('btn-export-code').addEventListener('click', () => openCodeModal('export'));
@@ -1476,7 +1811,10 @@ document.getElementById('code-modal').addEventListener('click', e => {
 
 document.getElementById('file-input').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) importDeck(file);
+  if (file) {
+    if (importMode === 'tts') importTTS(file);
+    else importDeck(file);
+  }
   e.target.value = ''; // 允许重复选择同一文件
 });
 
@@ -1486,7 +1824,21 @@ window.addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (file && (file.name.endsWith('.json') || file.type === 'application/json')) {
-    importDeck(file);
+    // 拖拽时自动识别：有 ObjectStates 的当作 TTS 存档
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (Array.isArray(data.ObjectStates) && data.ObjectStates.length && data.ObjectStates[0].DeckIDs) {
+          importTTS(file);
+        } else {
+          importDeck(file);
+        }
+      } catch (e) {
+        importDeck(file);
+      }
+    };
+    reader.readAsText(file);
   }
 });
 

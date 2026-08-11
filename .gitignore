@@ -1,0 +1,7 @@
+# 分析临时文件（卡图下载、切分图片等）
+or/all_cards/
+or/official/
+or/slots/
+or/cardsheet_download.png
+or/slots_preview.png
+or/slot_mapping.json
