@@ -61,6 +61,12 @@
   header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
   header h1 small { color: var(--text-dim); font-weight: 500; font-size: 12px; margin-left: 8px; }
   .header-center-btn { margin-left: 10px; flex: none; }
+  /* 桌面端显示 logo 旁的更新日志，隐藏第三行内的；手机端反之 */
+  #ha-row-tts #btn-changelog { display: none; }
+  @media (max-width: 640px) {
+    #btn-changelog-desktop { display: none; }
+    #ha-row-tts #btn-changelog { display: inline-flex; }
+  }
   .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .ha-row { display: flex; gap: 8px; align-items: center; }
   .btn {
@@ -518,6 +524,7 @@
   <header>
     <div class="logo">拳</div>
     <h1>动物之拳 ANIMAL PUNCH! <small>组卡器</small></h1>
+    <button class="btn ghost header-center-btn" id="btn-changelog-desktop" title="查看更新日志">更新日志</button>
     <div class="header-actions">
       <span class="src-status" id="src-status" title="卡牌数据来源"><span class="src-dot"></span><span id="src-status-text">加载中…</span></span>
       <div class="ha-row" id="ha-row-code">
@@ -4034,6 +4041,7 @@ function closeChangelog() {
   document.getElementById('changelog-modal').style.display = 'none';
 }
 document.getElementById('btn-changelog').addEventListener('click', openChangelog);
+document.getElementById('btn-changelog-desktop').addEventListener('click', openChangelog);
 document.getElementById('changelog-modal-cancel').addEventListener('click', closeChangelog);
 document.getElementById('changelog-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeChangelog();
