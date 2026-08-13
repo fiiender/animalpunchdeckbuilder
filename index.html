@@ -682,8 +682,8 @@
 <div class="modal-mask" id="deck-name-modal" style="display:none">
   <div class="modal">
     <h3>卡组名称</h3>
-    <div class="m-sub">最多 12 个字符</div>
-    <input type="text" id="deck-name-input" maxlength="12" placeholder="输入卡组名称" autocomplete="off">
+    <div class="m-sub">最多 6 个字符</div>
+    <input type="text" id="deck-name-input" maxlength="6" placeholder="输入卡组名称" autocomplete="off">
     <div class="m-actions">
       <button class="btn ghost" id="deck-name-modal-cancel">取消</button>
       <button class="btn primary" id="deck-name-modal-ok">确定</button>
@@ -3463,6 +3463,10 @@ function importTTS(file) {
 
     deck.main = main;
     deck.side = side;
+    // 用文件名作为卡组名称（去掉 .json 后缀，截断到 6 字符）
+    const base = (file.name || '').replace(/\.json$/i, '').trim();
+    deck.name = base.slice(0, 6);
+    syncDeckNameInput();
     renderAll();
     toast(`TTS 导入成功：主 ${total(deck.main)} 张 / 额外 ${total(deck.side)} 张`, 'ok');
   };
@@ -3567,7 +3571,7 @@ function charsToEntry(str) {
 }
 
 /* ---------- 卡组名称编码（UTF-8 → base62）----------
-   名称限 12 个字符。编码：nameLen(1字符base62，0=无名称) + 名称UTF-8字节转base62
+   名称限 6 个字符。编码：nameLen(1字符base62，0=无名称) + 名称UTF-8字节转base62
    字节数 b → 需要的 base62 字符数 n = ceil(b*8 / log2(62))，解码时按此精确读取 */
 function nameSegChars(b) {
   // b 个字节，每个字节8位；base62 每位约 log2(62)≈5.954 位
