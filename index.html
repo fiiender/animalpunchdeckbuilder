@@ -80,6 +80,32 @@
   .btn.danger:hover { border-color: var(--danger); color: var(--danger); background: rgba(255,92,108,0.08); }
   .btn.ghost { background: transparent; }
 
+  /* 文件导入/导出下拉（桌面端 hover 显示） */
+  .file-btn-wrap { position: relative; display: inline-flex; }
+  .file-dd {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 300;
+    min-width: 180px;
+    background: var(--panel-2); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow);
+    padding: 6px;
+    opacity: 0; visibility: hidden; transform: translateY(-4px);
+    transition: opacity .15s ease, transform .15s ease, visibility .15s;
+  }
+  .file-btn-wrap:hover .file-dd, .file-btn-wrap.open .file-dd {
+    opacity: 1; visibility: visible; transform: translateY(0);
+  }
+  .file-dd-title {
+    font-size: 11px; color: var(--text-faint); padding: 4px 8px 6px;
+  }
+  .file-dd-opt {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 7px 9px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: all .12s;
+  }
+  .file-dd-opt:hover { background: var(--panel-3); color: var(--text); }
+  .file-dd-opt.danger:hover { color: var(--danger); }
+
   /* Rules bar */
   .rules {
     display: flex; flex-wrap: wrap; gap: 6px 18px;
@@ -534,8 +560,22 @@
       <div class="ha-row" id="ha-row-tts">
         <button class="btn ghost" id="btn-changelog" title="查看更新日志">更新日志</button>
         <div class="tts-btns">
-          <button class="btn ghost" id="btn-import-tts" title="从 Tabletop Simulator 存档导入卡组">导入TTS</button>
-          <button class="btn ghost" id="btn-export-tts" title="导出卡组为 Tabletop Simulator 存档">导出TTS</button>
+          <div class="file-btn-wrap" id="file-import-wrap">
+            <button class="btn ghost" id="btn-import-file" title="导入卡组文件">导入文件</button>
+            <div class="file-dd" id="file-import-dd">
+              <div class="file-dd-title">选择导入格式</div>
+              <button class="file-dd-opt" data-action="tts">TTS 存档 (.json)</button>
+              <button class="file-dd-opt" data-action="cod">鸡蛇模拟器 (.cod)</button>
+            </div>
+          </div>
+          <div class="file-btn-wrap" id="file-export-wrap">
+            <button class="btn ghost" id="btn-export-file" title="导出卡组文件">导出文件</button>
+            <div class="file-dd" id="file-export-dd">
+              <div class="file-dd-title">选择导出格式</div>
+              <button class="file-dd-opt" data-action="tts">TTS 存档 (.json)</button>
+              <button class="file-dd-opt" data-action="cod">鸡蛇模拟器 (.cod)</button>
+            </div>
+          </div>
           <button class="btn danger" id="btn-clear" title="清空全部卡组">清空</button>
         </div>
       </div>
@@ -645,7 +685,7 @@
 
 <div class="tooltip" id="tooltip"></div>
 <div id="toast-box"></div>
-<input type="file" id="file-input" accept=".json,application/json" style="display:none">
+<input type="file" id="file-input" accept=".json,application/json,.cod" style="display:none">
 
 <!-- 移动端卡面预览浮层 -->
 <div class="mobile-preview" id="mobile-preview">
@@ -3473,6 +3513,180 @@ function importTTS(file) {
   reader.readAsText(file);
 }
 
+/* ---------- 鸡蛇模拟器（Cockatrice .cod）导入 / 导出 ----------
+   .cod 是 Cockatrice 格式的 XML，卡名格式：「编号 卡名[稀有度后缀]」
+   例如：
+   - 「008 北美灰狼SP」→ 网站 SP008
+   - 「EX02 爪哇犀牛EX」→ 网站 EX02
+   - 「009 土佐犬」→ 网站 009
+   规则：SP 卡编号不带前缀（008→SP008），EX 卡编号带 EX 前缀（EX02），普通卡为纯编号。
+   稀有度后缀从卡名末尾的 SP/EX 判断。 */
+
+// 把网站卡牌 id 转成 .cod 卡名
+function codCardName(id) {
+  const c = CARD_MAP[id];
+  if (!c) return '';
+  if (c.rarity === 'EX') {
+    return `${c.id} ${c.name}EX`;   // EX02 爪哇犀牛EX
+  }
+  if (c.rarity === 'SP') {
+    const num = c.id.replace(/^SP/, '');   // SP008 -> 008
+    return `${num} ${c.name}SP`;            // 008 北美灰狼SP
+  }
+  // 普通卡：纯编号 + 卡名（编号 = id 去掉字母前缀）
+  const num = c.id.replace(/^[A-Za-z]+/, '');
+  return `${num} ${c.name}`;                // 009 土佐犬
+}
+
+// 导出为 .cod 文件
+function exportCockatrice() {
+  const mainEntries = Object.entries(deck.main);
+  const sideEntries = Object.entries(deck.side);
+  if (!mainEntries.length && !sideEntries.length) {
+    toast('卡组为空，无可导出内容', 'error');
+    return;
+  }
+
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += `<cockatrice_deck version="1">\n`;
+  xml += `    <lastLoadedTimestamp></lastLoadedTimestamp>\n`;
+  xml += `    <deckname>${esc(deck.name || '未命名卡组')}</deckname>\n`;
+  xml += `    <bannerCard providerId=""></bannerCard>\n`;
+  xml += `    <comments></comments>\n`;
+  xml += `    <tags/>\n`;
+  if (mainEntries.length) {
+    xml += `    <zone name="main">\n`;
+    for (const [id, count] of mainEntries) {
+      const name = codCardName(id);
+      if (name) xml += `        <card number="${count}" name="${esc(name)}" setShortName="V0"/>\n`;
+    }
+    xml += `    </zone>\n`;
+  }
+  if (sideEntries.length) {
+    xml += `    <zone name="side">\n`;
+    for (const [id, count] of sideEntries) {
+      const name = codCardName(id);
+      if (name) xml += `        <card number="${count}" name="${esc(name)}" setShortName="V0"/>\n`;
+    }
+    xml += `    </zone>\n`;
+  }
+  xml += `</cockatrice_deck>\n`;
+
+  const blob = new Blob([xml], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const namePart = (deck.name || '未命名卡组').replace(/[\\/:*?"<>|]/g, '').trim();
+  a.download = `${namePart || '卡组'}.cod`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`已导出鸡蛇模拟器卡组：主 ${mainEntries.length ? total(deck.main) : 0} / 额外 ${sideEntries.length ? total(deck.side) : 0}`, 'ok');
+}
+
+// 解析 .cod 中的一张卡：把「编号 卡名[SP/EX]」转成网站 id
+function codNameToId(cardName) {
+  if (!cardName) return null;
+  // 分离 编号 与 卡名
+  const m = String(cardName).match(/^(\S+)\s+(.+)$/);
+  if (!m) return null;
+  const prefix = m[1];   // 编号：008 / EX02 / 009
+  const namePart = m[2]; // 卡名：北美灰狼SP / 爪哇犀牛EX / 土佐犬
+
+  // 从卡名末尾判断稀有度后缀
+  let raritySuffix = '';
+  let baseName = namePart;
+  if (/^(SP|EX)$/.test(namePart.slice(-2))) {
+    raritySuffix = namePart.slice(-2);
+    baseName = namePart.slice(0, -2);
+  } else if (/^EX$/.test(namePart.slice(-2))) {
+    raritySuffix = 'EX';
+    baseName = namePart.slice(0, -2);
+  } else if (namePart.endsWith('SP')) {
+    raritySuffix = 'SP';
+    baseName = namePart.slice(0, -2);
+  } else if (namePart.endsWith('EX')) {
+    raritySuffix = 'EX';
+    baseName = namePart.slice(0, -2);
+  }
+
+  // 在 CARD_MAP 中按 卡名+稀有度 匹配
+  const candidates = CARDS.filter(c => c.name === baseName);
+  if (raritySuffix) {
+    const exact = candidates.find(c => c.rarity === raritySuffix);
+    if (exact) return exact.id;
+  }
+  // 无后缀或没匹配到稀有度：优先匹配编号对应的卡
+  if (candidates.length === 1) return candidates[0].id;
+  // 用编号匹配（SP 卡编号不带前缀）
+  if (prefix.startsWith('EX')) {
+    const ex = candidates.find(c => c.id === prefix);
+    if (ex) return ex.id;
+  }
+  const sp = candidates.find(c => c.id === 'SP' + prefix);
+  if (sp) return sp.id;
+  const norm = candidates.find(c => c.id === prefix || c.id === '0' + prefix);
+  if (norm) return norm.id;
+  return candidates.length ? candidates[0].id : null;
+}
+
+// 从 .cod 文件导入
+function importCockatrice(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = reader.result;
+    const parser = new DOMParser();
+    let doc;
+    try {
+      doc = parser.parseFromString(text, 'text/xml');
+    } catch (e) {
+      toast('导入失败：.cod 文件解析失败', 'error');
+      return;
+    }
+    if (doc.querySelector('parsererror')) {
+      toast('导入失败：.cod 文件格式不正确', 'error');
+      return;
+    }
+
+    const main = {}, side = {};
+    const zones = doc.getElementsByTagName('zone');
+    for (const zone of zones) {
+      const zoneName = zone.getAttribute('name');
+      const isMain = zoneName === 'main' || zoneName === 'mainboard';
+      const cards = zone.getElementsByTagName('card');
+      for (const card of cards) {
+        const count = parseInt(card.getAttribute('number') || '1', 10) || 1;
+        const cardName = card.getAttribute('name') || '';
+        const id = codNameToId(cardName);
+        if (!id) { console.warn('无法识别卡名:', cardName); continue; }
+        if (isMain) main[id] = (main[id] || 0) + count;
+        else side[id] = (side[id] || 0) + count;
+      }
+    }
+
+    if (!Object.keys(main).length && !Object.keys(side).length) {
+      toast('导入失败：未识别到可映射的卡牌', 'error');
+      return;
+    }
+
+    // 卡组名称
+    const dn = doc.getElementsByTagName('deckname')[0];
+    deck.name = (dn ? dn.textContent : '').trim().slice(0, 6);
+
+    const issues = validateDeck(main, side);
+    if (issues.length) console.warn('鸡蛇导入规则提示:', issues);
+
+    deck.main = main;
+    deck.side = side;
+    syncDeckNameInput();
+    renderAll();
+    toast(`鸡蛇导入成功：主 ${total(deck.main)} 张 / 额外 ${total(deck.side)} 张`, 'ok');
+  };
+  reader.readAsText(file);
+}
+
 // 根据卡表号和槽位反查卡牌id
 function ttsSlotToCardId(deckNo, slot) {
   // 卡表号 -> 颜色
@@ -3923,10 +4137,6 @@ grid.addEventListener('mouseleave', () => { if (!isMobileLayout()) hideTip(); })
 
 document.getElementById('btn-clear').addEventListener('click', clearDeck);
 
-// TTS 按钮
-document.getElementById('btn-export-tts').addEventListener('click', () => openTTSModal('export'));
-document.getElementById('btn-import-tts').addEventListener('click', () => openTTSModal('import'));
-
 // TTS 教程弹窗
 let ttsModalMode = 'export';
 function openTTSModal(mode) {
@@ -3961,8 +4171,53 @@ document.getElementById('tts-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeTTSModal();
 });
 
+// 合并的导入/导出文件按钮
+document.getElementById('btn-import-file').addEventListener('click', () => {
+  document.getElementById('file-import-wrap').classList.toggle('open');
+});
+document.getElementById('btn-export-file').addEventListener('click', () => {
+  document.getElementById('file-export-wrap').classList.toggle('open');
+});
+// 点击下拉选项后关闭下拉
+document.querySelectorAll('.file-dd').forEach(dd => {
+  dd.addEventListener('click', e => {
+    const btn = e.target.closest('.file-dd-opt');
+    if (!btn) return;
+    const wrap = dd.closest('.file-btn-wrap');
+    if (wrap) wrap.classList.remove('open');
+  });
+});
+// 导入选项
+document.querySelectorAll('#file-import-dd .file-dd-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    if (opt.dataset.action === 'tts') openTTSModal('import');
+    else document.getElementById('file-input').click();
+  });
+});
+// 导出选项
+document.querySelectorAll('#file-export-dd .file-dd-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    if (opt.dataset.action === 'tts') openTTSModal('export');
+    else exportCockatrice();
+  });
+});
+// 点击页面其他区域关闭下拉
+document.addEventListener('click', e => {
+  if (!e.target.closest('.file-btn-wrap')) {
+    document.querySelectorAll('.file-btn-wrap.open').forEach(w => w.classList.remove('open'));
+  }
+});
+
 // 更新日志
 const CHANGELOG = [
+  {
+    ver: 'v1.6.3',
+    date: '2026-08-11',
+    desc: [
+      '兼容鸡蛇模拟器（Cockatrice .cod 卡组导入导出）',
+      '导入/导出文件按钮合并，支持格式选择'
+    ]
+  },
   {
     ver: 'v1.6.2',
     date: '2026-08-11',
@@ -4064,17 +4319,23 @@ document.getElementById('code-modal').addEventListener('click', e => {
 
 document.getElementById('file-input').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) importTTS(file);
+  if (file) importFileAuto(file);
   e.target.value = ''; // 允许重复选择同一文件
 });
 
-// 拖拽导入（TTS 存档）
+// 自动识别文件类型：.cod 走鸡蛇导入，否则走 TTS
+function importFileAuto(file) {
+  if (file.name.toLowerCase().endsWith('.cod')) importCockatrice(file);
+  else importTTS(file);
+}
+
+// 拖拽导入（自动识别）
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if (file && (file.name.endsWith('.json') || file.type === 'application/json')) {
-    importTTS(file);
+  if (file && (/\.(json|cod)$/i.test(file.name) || file.type === 'application/json')) {
+    importFileAuto(file);
   }
 });
 
