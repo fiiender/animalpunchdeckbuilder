@@ -3274,8 +3274,8 @@ function exportTTS() {
     return s;
   };
 
-  // 为一组卡牌构建一个 Deck 对象
-  const buildDeck = (entries) => {
+  // 为一组卡牌构建一个 Deck 对象（pos 为 TTS 坐标，nickname 用于在 TTS 中区分主/额外）
+  const buildDeck = (entries, pos = [0, 1, 0], nickname = '') => {
     // 构建 DeckIDs
     const deckIDs = [];
     for (const { id, count } of entries) {
@@ -3355,11 +3355,11 @@ function exportTTS() {
       GUID: mkGuid(),
       Name: 'Deck',
       Transform: {
-        posX: 0, posY: 1, posZ: 0,
+        posX: pos[0], posY: pos[1], posZ: pos[2],
         rotX: 0, rotY: 180, rotZ: 0,
         scaleX: 1, scaleY: 1, scaleZ: 1
       },
-      Nickname: '',
+      Nickname: nickname,
       Description: '',
       GMNotes: '',
       AltLookAngle: { x: 0, y: 0, z: 0 },
@@ -3388,15 +3388,15 @@ function exportTTS() {
     };
   };
 
-  // 组装存档：主卡组 Deck + 额外卡组 Deck（参考 aas.json）
+  // 组装存档：主卡组 Deck + 额外卡组 Deck（参考 aas.json，分开放置避免在 TTS 中叠成一摞）
   const objectStates = [];
   if (mainEntries.length) {
-    const mainDeck = buildDeck(mainEntries);
+    const mainDeck = buildDeck(mainEntries, [0, 1, 0], '主卡组');
     if (!mainDeck) return;
     objectStates.push(mainDeck);
   }
   if (sideEntries.length) {
-    const sideDeck = buildDeck(sideEntries);
+    const sideDeck = buildDeck(sideEntries, [4, 1, 0], '额外卡组');
     if (!sideDeck) return;
     objectStates.push(sideDeck);
   }
@@ -3533,6 +3533,10 @@ function codCardName(id) {
     const num = c.id.replace(/^SP/, '');   // SP008 -> 008
     return `${num} ${c.name}SP`;            // 008 北美灰狼SP
   }
+  // 白色菌植 PaF01-06：编号保留 PaF 前缀（如 PaF02 荆与棘）
+  if (/^PaF\d+$/.test(c.id)) {
+    return `${c.id} ${c.name}`;             // PaF02 荆与棘
+  }
   // 普通卡：纯编号 + 卡名（编号 = id 去掉字母前缀）
   const num = c.id.replace(/^[A-Za-z]+/, '');
   return `${num} ${c.name}`;                // 009 土佐犬
@@ -3592,8 +3596,14 @@ function codNameToId(cardName) {
   // 分离 编号 与 卡名
   const m = String(cardName).match(/^(\S+)\s+(.+)$/);
   if (!m) return null;
-  const prefix = m[1];   // 编号：008 / EX02 / 009
-  const namePart = m[2]; // 卡名：北美灰狼SP / 爪哇犀牛EX / 土佐犬
+  const prefix = m[1];   // 编号：008 / EX02 / 009 / PaF02
+  const namePart = m[2]; // 卡名：北美灰狼SP / 爪哇犀牛EX / 土佐犬 / 荆与棘
+
+  // 白色菌植 PaF01-06：编号即完整 id（如 PaF02 荆与棘）
+  if (/^PaF\d+$/.test(prefix)) {
+    const paf = CARD_MAP[prefix];
+    if (paf) return paf.id;
+  }
 
   // 从卡名末尾判断稀有度后缀
   let raritySuffix = '';
